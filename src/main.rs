@@ -37,7 +37,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
     }
 
     'main_loop: loop {
-        // TODO: Event loop
+        while let Some(event) = sdl3::poll_event() {
+            match event {
+                sdl3::events::Event::SDL_EVENT_QUIT(_) => { break 'main_loop; },
+                _ => {}
+            }
+        }
 
         unsafe {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
@@ -49,3 +54,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     return Ok(());
 }
+

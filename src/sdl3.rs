@@ -2,8 +2,11 @@
 
 use crate::gl;
 
+pub mod events;
+
 mod _sdl3 {
     pub type Bool = core::ffi::c_int;
+    use crate::sdl3::events;
 
     #[link(name="SDL3")]
     extern "C" {
@@ -19,6 +22,8 @@ mod _sdl3 {
         pub fn SDL_GL_SetSwapInterval(interval: core::ffi::c_int) -> Bool;
         pub fn SDL_GL_GetProcAddress(proc_name: *const core::ffi::c_char) -> *const core::ffi::c_void;
         pub fn SDL_GL_SwapWindow(window: *mut core::ffi::c_void) -> Bool;
+
+        pub fn SDL_PollEvent(event: *mut events::Event) -> bool;
 
         pub fn SDL_GetError() -> *const core::ffi::c_char;
     }
@@ -166,6 +171,18 @@ impl<'a> Window {
 
     pub fn swap(&mut self) -> Result<(), String> {
         sdl_bool_to_result(unsafe { _sdl3::SDL_GL_SwapWindow(self.window) } )
+    }
+}
+
+pub fn poll_event() -> Option<events::Event> {
+    unsafe {
+        let mut event = std::mem::MaybeUninit::uninit();
+        let ret = _sdl3::SDL_PollEvent(event.as_mut_ptr());
+        if (ret) {
+            Some(event.assume_init())
+        } else {
+            None
+        }
     }
 }
 
