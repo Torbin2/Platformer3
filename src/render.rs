@@ -1,7 +1,7 @@
 use crate::gl;
 
 pub struct Shader {
-    shader_program: gl::GLuint,
+    pub shader_program: gl::GLuint,
 }
 
 impl Shader {
@@ -164,6 +164,168 @@ impl Shader {
 impl Drop for Shader {
     fn drop(&mut self) {
         unsafe { gl::DeleteProgram(self.shader_program) };
+    }
+}
+
+
+// --------
+pub struct RenderObject {
+    ibo: gl::GLuint,
+    index_type: gl::GLenum,
+    indices_amount: i32,
+    vao: gl::GLuint,
+    vbo: gl::GLuint,
+}
+
+#[allow(unused)]
+pub enum Indices<'a> {
+    U8(&'a [u8]),
+    U16(&'a [u16]),
+    U32(&'a [u32]),
+}
+
+impl Indices<'_> {
+    fn sizeof_element(&self) -> usize {
+        match self {
+            Self::U8(_)  => 1,
+            Self::U16(_) => 2,
+            Self::U32(_) => 4,
+        }
+    }
+
+    fn sizeof(&self) -> usize {
+        let s = dbg!(self.sizeof_element());
+        dbg!(match self {
+            Self::U8(v)  => v.len() * s,
+            Self::U16(v) => v.len() * s,
+            Self::U32(v) => v.len() * s,
+        })
+    }
+
+    fn as_gl_type(&self) -> gl::GLenum {
+        match self {
+            Self::U8(_)  => gl::UNSIGNED_BYTE,
+            Self::U16(_) => gl::UNSIGNED_SHORT,
+            Self::U32(_) => gl::UNSIGNED_INT,
+        }
+    }
+
+    unsafe fn into_inner(&self) -> *const std::ffi::c_void {
+        match self {
+            Self::U8(v)  => v.as_ptr() as *const std::ffi::c_void,
+            Self::U16(v) => v.as_ptr() as *const std::ffi::c_void,
+            Self::U32(v) => v.as_ptr() as *const std::ffi::c_void,
+        }
+    }
+}
+
+#[allow(unused)]
+pub enum VertexAttributeType {
+    I8, U8,
+    I16, U16,
+    I32, U32,
+
+    F16,
+    F32,
+    F64,
+    I16_16,
+    I2_10_10_10Rev, U2_10_10_10Rev,
+}
+
+impl VertexAttributeType {
+    pub fn as_gl_type(&self) -> gl::GLenum {
+        // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glVertexAttribPointer.xhtml
+        match self {
+            VertexAttributeType::I8  => gl::BYTE,
+            VertexAttributeType::U8  => gl::UNSIGNED_BYTE,
+            VertexAttributeType::I16 => gl::SHORT,
+            VertexAttributeType::U16 => gl::UNSIGNED_SHORT,
+            VertexAttributeType::I32 => gl::INT,
+            VertexAttributeType::U32 => gl::UNSIGNED_INT,
+
+            VertexAttributeType::F16 => gl::HALF_FLOAT,
+            VertexAttributeType::F32 => gl::FLOAT,
+            VertexAttributeType::F64 => gl::DOUBLE,
+            VertexAttributeType::I16_16 => todo!(),
+            VertexAttributeType::I2_10_10_10Rev => gl::INT_2_10_10_10_REV,
+            VertexAttributeType::U2_10_10_10Rev => gl::UNSIGNED_INT_2_10_10_10_REV,
+        }
+    }
+
+    pub fn sizeof(&self) -> usize {
+        todo!()
+    }
+}
+
+pub struct VertexAttribute {
+    pub type_: VertexAttributeType,
+    // 1, 2, 3 or 4
+    pub component_amount: u8,
+    pub normalized: bool,
+
+    pub stride: isize,
+    pub pointer: usize,
+}
+
+impl RenderObject {
+    // TODO: new() Function which takes in struct{pos: [f32; 3], uv: [u32; 2]}
+    pub fn new(indices: Indices, vertices: &[u8], vertex_attributes: &[VertexAttribute]) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut vao: gl::GLuint = 0;
+        unsafe {
+            gl::GenVertexArrays(1, &mut vao);
+            gl::BindVertexArray(vao);
+        }
+
+        let mut vbo: gl::GLuint = 0;
+        unsafe {
+            gl::GenBuffers(1, &mut vbo);
+            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+            gl::BufferData(gl::ARRAY_BUFFER, vertices.len() as isize, vertices.as_ptr() as *const core::ffi::c_void, gl::STATIC_DRAW);
+        }
+
+        let mut ibo: gl::GLuint = 0;
+        unsafe {
+            gl::GenBuffers(1, &mut ibo);
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
+            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, indices.sizeof() as isize, indices.into_inner(), gl::STATIC_DRAW);
+        }
+
+        for (i, attr) in vertex_attributes.iter().enumerate() {
+            unsafe {
+                gl::VertexAttribPointer(
+                    i.try_into().unwrap(),
+                    attr.component_amount as gl::GLint,
+                    attr.type_.as_gl_type(),
+                    attr.normalized as gl::GLboolean,
+                    attr.stride as gl::GLsizei,
+                    attr.pointer as *const core::ffi::c_void
+                );
+                gl::EnableVertexAttribArray(i as gl::GLuint);
+            }
+        }
+
+        Ok(Self {
+            ibo, vao, vbo,
+            index_type: indices.as_gl_type(),
+            indices_amount: (indices.sizeof() / indices.sizeof_element()).try_into().unwrap()
+        } )
+    }
+
+    pub fn render(&mut self) {
+        unsafe {
+            gl::BindVertexArray(self.vao);
+            gl::DrawElements(gl::TRIANGLES, self.indices_amount, self.index_type, 0 as *const core::ffi::c_void);
+        }
+    }
+}
+
+impl Drop for RenderObject {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteVertexArrays(1, &self.vao);
+            gl::DeleteVertexArrays(1, &self.vbo);
+            gl::DeleteVertexArrays(1, &self.ibo);
+        }
     }
 }
 

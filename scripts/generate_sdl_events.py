@@ -1,6 +1,8 @@
 import sys
 import io
 
+# See https://doc.rust-lang.org/reference/type-layout.html
+
 def preprocess(src: str) -> str:
     out = io.StringIO()
 
@@ -184,6 +186,7 @@ if __name__ == '__main__':
     print(f'// Generated using: python3 {" ".join(sys.argv)}')
     print('#![allow(non_camel_case_types)]')
     print('#![allow(non_snake_case)]')
+    print()
 
     lines = p.split('\n')
 
@@ -235,19 +238,8 @@ if __name__ == '__main__':
         event_enum.append((name, enum_value))
     assert get().strip() == '} SDL_EventType;'
 
-    last_value = -1
-    print('#[repr(u32)]')
-    print('pub enum Event {')
-    for name, value in event_enum:
-        if value != last_value:
-            v = f' = 0x{value:x}'
-        else:
-            v = ''
-        print('    ' + name + '(' + event_to_type_name(name) + ')' + v + ',')
-        last_value = value
-    print('}')
-
     # -----
+    event_structs: dict[str, list[tuple[str, str]]] = {}
     while (line := try_get()) is not None:
         line = line.strip()
         if line.startswith('extern') or line.startswith('SDL_COMPILE_TIME_ASSERT'):
@@ -259,8 +251,9 @@ if __name__ == '__main__':
         if line.startswith('typedef'):
             struct_name = line.removeprefix('typedef struct ').removeprefix('SDL_')
             assert get().strip() == '{'
-            print('#[repr(C)]')
-            print(f'pub struct {struct_name} {{')
+            # print('#[repr(C)]')
+            # print(f'pub struct {struct_name} {{')
+            struct: list[tuple[str, str]] = []
             while not (line := get()).startswith('}'):
                 line = line.strip()
                 type_name, _, member = line.rpartition(' ')
@@ -306,6 +299,7 @@ if __name__ == '__main__':
                     'SDL_PenInputFlags': 'PenInputFlags',  # u32
                     'SDL_PenAxis': 'PenAxis',        # Enum
                     'SDL_SensorID': 'SensorID',      # u32
+                    'SDL_PenDeviceType': 'PenDeviceType',  # Enum (u32)
                 }
                 type_name = c_to_rust_typename[type_name]
                 if member == 'type':
@@ -316,10 +310,32 @@ if __name__ == '__main__':
                     member, _, l = member.partition('[')
                     l = l.removesuffix(']')
                     type_name = f'[{type_name}; {l}]'
-                print(f'    pub {member}: {type_name},')
+                # print(f'    pub {member}: {type_name},')
+                struct.append((member, type_name))
                 assert '[' not in member, (member, type_name, line)
                 assert '*' not in member, (member, type_name, line)
-            print('}')
+            # print('}\n')
+            # print(struct, file=sys.stderr)
+            assert struct.pop(0) == ('event_type', 'u32')
+            event_structs[struct_name] = struct
+
+    # -----
+    last_value = -1
+    print('#[repr(u32)]')
+    print('pub enum Event {')
+    for name, value in event_enum:
+        if value != last_value + 1:
+            if last_value != -1:
+                print()
+            v = f' = 0x{value:x}'
+        else:
+            v = ''
+        type_name = event_to_type_name(name)
+        print('    ' + name + f'/*{type_name}*/ {{ ' + ', '.join(member + ': ' + type_name for member, type_name in event_structs[type_name]) + ' }' + v + ',')
+        last_value = value
+    print('}')
+    print()
+
 
     typedefs = {
         'DisplayID': 'u32',
@@ -341,11 +357,14 @@ if __name__ == '__main__':
         'PenInputFlags': 'u32',
         'PenAxis': 'Enum',
         'SensorID': 'u32',
+        'PenDeviceType': 'Enum'
     }
     for name, t in typedefs.items():
         if t == 'Enum':
-            print(f'pub enum {name} {{}}')
-        else:
-            print('#[repr(C)]')
-            print(f'pub struct {name}({t});')
+            # print("#[repr(C, u32)]")
+            # print(f'pub enum {name} {{}}')
+            t = 'u32'
+        # else:
+        print('#[repr(transparent)]')
+        print(f'pub struct {name}(pub {t});')
 
