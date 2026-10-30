@@ -194,12 +194,12 @@ impl Indices<'_> {
     }
 
     fn sizeof(&self) -> usize {
-        let s = dbg!(self.sizeof_element());
-        dbg!(match self {
+        let s = self.sizeof_element();
+        match self {
             Self::U8(v)  => v.len() * s,
             Self::U16(v) => v.len() * s,
             Self::U32(v) => v.len() * s,
-        })
+        }
     }
 
     fn as_gl_type(&self) -> gl::GLenum {
@@ -250,10 +250,6 @@ impl VertexAttributeType {
             VertexAttributeType::I2_10_10_10Rev => gl::INT_2_10_10_10_REV,
             VertexAttributeType::U2_10_10_10Rev => gl::UNSIGNED_INT_2_10_10_10_REV,
         }
-    }
-
-    pub fn sizeof(&self) -> usize {
-        todo!()
     }
 }
 

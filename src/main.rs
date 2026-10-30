@@ -2,6 +2,8 @@ mod gl;
 mod sdl3;
 mod render;
 
+mod matrix;
+
 fn gl_get_string(name: core::ffi::c_uint) -> &'static str {
     unsafe {
         core::ffi::CStr::from_ptr(gl::GetString(name))
@@ -41,8 +43,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 #version 330 core
 layout (location = 0) in vec3 aPos;
 
+uniform mat4 transform;
+
 void main () {
-	gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+	gl_Position = transform * vec4(aPos, 1.0);
 }", None, Some("
 #version 330 core
 out vec4 FragColor;
@@ -65,9 +69,9 @@ void main() {
 
     let indices = vec![0, 1, 2];
     let vertices: Vec<f32> = vec![
-        -0.5, -0.5, 0.0,
-         0.5, -0.5, 0.0,
-         0.0,  0.5, 0.0
+        -0.5, -0.5, -10.0,
+         0.5, -0.5, -10.0,
+         0.0,  0.5, -10.0
     ];
     let vertex_attributes = vec![
         render::VertexAttribute{
@@ -87,12 +91,20 @@ void main() {
         &vertex_attributes
     )?;
 
+    // unsafe {
+    //     gl::Enable(gl::DEPTH_TEST);
+    // }
+
+    let mut width = 1;
+    let mut height = 1;
     'main_loop: loop {
         while let Some(event) = sdl3::poll_event() {
             match event {
                 sdl3::events::Event::SDL_EVENT_QUIT { .. } => { break 'main_loop; },
-                sdl3::events::Event::SDL_EVENT_WINDOW_RESIZED { data1: width, data2: height, .. } => {
-                    unsafe { gl::Viewport(0, 0, width, height) };
+                sdl3::events::Event::SDL_EVENT_WINDOW_RESIZED { data1: w, data2: h, .. } => {
+                    unsafe { gl::Viewport(0, 0, w, h) };
+                    width = w;
+                    height = h;
                 },
                 _ => {}
             }
@@ -106,6 +118,17 @@ void main() {
         unsafe {
             gl::UseProgram(shader_program.shader_program);
         }
+
+        let m = matrix::Matrix::gen_perspective(3.141 / 4.0, width as f32 / height as f32, 0.1, 100.0);
+        unsafe {
+            let transform_loc = gl::GetUniformLocation(shader_program.shader_program, c"transform".as_ptr());
+            if transform_loc == -1 {
+                println!("Could not get \"transform\" uniform location");
+            } else {
+                gl::UniformMatrix4fv(transform_loc, 1, gl::TRUE, m.0.as_ptr());
+            }
+        }
+
         triangle.render();
 
         window.swap()?;
