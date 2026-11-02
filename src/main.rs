@@ -3,6 +3,7 @@ mod sdl3;
 mod render;
 
 mod matrix;
+mod camera;
 
 fn gl_get_string(name: core::ffi::c_uint) -> &'static str {
     unsafe {
@@ -67,11 +68,12 @@ void main() {
         }
     };
 
-    let indices = vec![0, 1, 2];
+    let indices = vec![0, 1, 2,  1, 3, 2];
     let vertices: Vec<f32> = vec![
         -0.5, -0.5, -10.0,
          0.5, -0.5, -10.0,
-         0.0,  0.5, -10.0
+         -0.5,  0.5, -10.0,
+         0.5, 0.5, -10.0
     ];
     let vertex_attributes = vec![
         render::VertexAttribute{
@@ -95,9 +97,21 @@ void main() {
     //     gl::Enable(gl::DEPTH_TEST);
     // }
 
+    let mut cam = camera::Camera {
+        position: matrix::Vector { x: 0.0, y: 0.0, z: 0.0 },
+        direction: matrix::Vector { x: 0.0, y: 0.0, z: 0.0 }
+    };
+
+    let mut frame_start = std::time::Instant::now();
+
     let mut width = 1;
     let mut height = 1;
+    let mut rect_rotation = 0.0;
     'main_loop: loop {
+        let dt = frame_start.elapsed().as_nanos() as f32 / 1.0e6;
+        let _fps = 1000.0 / dt;
+
+        frame_start = std::time::Instant::now();
         while let Some(event) = sdl3::poll_event() {
             match event {
                 sdl3::events::Event::SDL_EVENT_QUIT { .. } => { break 'main_loop; },
@@ -119,7 +133,10 @@ void main() {
             gl::UseProgram(shader_program.shader_program);
         }
 
-        let m = matrix::Matrix::gen_perspective(3.141 / 4.0, width as f32 / height as f32, 0.1, 100.0);
+        // let m = matrix::Matrix::gen_perspective(3.141 / 4.0, width as f32 / height as f32, 0.1, 100.0);
+        cam.position.z += 0.01 * dt;
+        let m = matrix::Matrix::gen_rotation(0.0, 0.0, 1.0, rect_rotation) * cam.gen_world_to_clip(width as f32 / height as f32);
+        rect_rotation += 0.001 * dt;
         unsafe {
             let transform_loc = gl::GetUniformLocation(shader_program.shader_program, c"transform".as_ptr());
             if transform_loc == -1 {

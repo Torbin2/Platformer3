@@ -17,7 +17,12 @@ impl Matrix {
     }
 
     pub fn gen_rotation(x: f32, y: f32, z: f32, angle: f32) -> Self {
-        todo!()
+        Matrix([
+            angle.cos() + (x*x) * (1.0 - angle.cos()), x * y * (1.0 - angle.cos()) - z * angle.sin(), x * z * (1.0 - angle.cos()) + y * angle.sin(), 0.0,
+            y * x * (1.0 - angle.cos()) + z * angle.sin(), angle.cos() + (y*y) * (1.0 - angle.cos()), y * z * (1.0 - angle.cos()) - x * angle.sin(), 0.0,
+            z * x * (1.0 - angle.cos()) - y * angle.sin(), z * y * (1.0 - angle.cos()) + x * angle.sin(), angle.cos() + (z*z) * (1.0 - angle.cos()), 0.0,
+            0.0, 0.0, 0.0, 1.0
+        ])
     }
 
     pub fn gen_translation(x: f32, y: f32, z: f32) -> Self {
@@ -62,7 +67,7 @@ impl std::ops::Mul for Matrix {
 }
 
 #[derive(Clone, Copy)]
-pub struct Vector { x: f32, y: f32, z: f32 }
+pub struct Vector { pub x: f32, pub y: f32, pub z: f32 }
 
 pub const VECTOR_UP: Vector = Vector { x: 0.0, y: 1.0, z: 0.0 };
 pub const VECTOR_FORWARD: Vector = Vector { x: 0.0, y: 0.0, z: 1.0 };
@@ -84,6 +89,14 @@ impl Vector {
         }
     }
     // struct Vector vector__add(struct Vector, struct Vector);
+
+    pub fn from_direction(direction: Vector) -> Vector {
+        Vector {
+            x: direction.y.sin() * direction.x.cos(),
+            y: -direction.x.sin(),
+            z: direction.y.cos() * direction.x.cos()
+        }
+    }
 }
 
 impl std::ops::Div<f32> for Vector {
@@ -119,6 +132,14 @@ impl std::ops::Add for Vector {
             y: self.y + rhs.y,
             z: self.z + rhs.z,
         }
+    }
+}
+
+impl std::ops::AddAssign for Vector {
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+        self.z += rhs.z;
     }
 }
 
