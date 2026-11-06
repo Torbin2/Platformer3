@@ -70,10 +70,10 @@ void main() {
 
     let indices = vec![0, 1, 2,  1, 3, 2];
     let vertices: Vec<f32> = vec![
-        -0.5, -0.5, -10.0,
-         0.5, -0.5, -10.0,
-         -0.5,  0.5, -10.0,
-         0.5, 0.5, -10.0
+        -0.5, -0.5, 0.0,
+         0.5, -0.5, 0.0,
+        -0.5,  0.5, 0.0,
+         0.5,  0.5, 0.0
     ];
     let vertex_attributes = vec![
         render::VertexAttribute{
@@ -93,9 +93,9 @@ void main() {
         &vertex_attributes
     )?;
 
-    // unsafe {
-    //     gl::Enable(gl::DEPTH_TEST);
-    // }
+    unsafe {
+        gl::Enable(gl::DEPTH_TEST);
+    }
 
     let mut cam = camera::Camera {
         position: matrix::Vector { x: 0.0, y: 0.0, z: 0.0 },
@@ -106,6 +106,10 @@ void main() {
 
     let mut width = 1;
     let mut height = 1;
+
+    let mut menu_enabled = false;
+    window.set_relative_mouse_mode(true)?;
+
     let mut rect_rotation = 0.0;
     'main_loop: loop {
         let dt = frame_start.elapsed().as_nanos() as f32 / 1.0e6;
@@ -119,6 +123,23 @@ void main() {
                     unsafe { gl::Viewport(0, 0, w, h) };
                     width = w;
                     height = h;
+                },
+                sdl3::events::Event::SDL_EVENT_KEY_DOWN { scancode, repeat, .. } => {
+                    match scancode.0 {
+                        sdl3::keys::SCANCODE_ESCAPE => {
+                            if !repeat {
+                                if !menu_enabled {
+                                    menu_enabled = true;
+
+                                    let (width, height) = window.get_size_in_pixels();
+                                    window.warp_mouse(dbg!(width as f32 / 2.0), height as f32 / 2.0);
+
+                                    window.set_relative_mouse_mode(false)?;
+                                }
+                            }
+                        },
+                        _ => {}
+                    }
                 },
                 _ => {}
             }
@@ -136,13 +157,29 @@ void main() {
             gl::UseProgram(shader_program.shader_program);
         }
 
-        // let m = matrix::Matrix::gen_perspective(3.141 / 4.0, width as f32 / height as f32, 0.1, 100.0);
-        if keys[sdl3::keys::SCANCODE_S as usize] != 0 {
-            cam.position.z += 0.01 * dt;
+        if !menu_enabled {
+            if keys[sdl3::keys::SCANCODE_S as usize] != 0 {
+                cam.move_in_view_space(0.0, 0.0, 0.01 * dt);
+            }
+            if keys[sdl3::keys::SCANCODE_W as usize] != 0 {
+                cam.move_in_view_space(0.0, 0.0, -0.01 * dt);
+            }
+
+            if keys[sdl3::keys::SCANCODE_A as usize] != 0 {
+                cam.move_in_view_space(0.01 * dt, 0.0, 0.0);
+            }
+            if keys[sdl3::keys::SCANCODE_D as usize] != 0 {
+                cam.move_in_view_space(-0.01 * dt, 0.0, 0.0);
+            }
+
+            let (mouse_dx, mouse_dy, _mouse_flags) = sdl3::get_relative_mouse_state();
+            {
+                let mult = 1000.0;
+                cam.direction.x -= mouse_dy as f32 / mult;
+                cam.direction.y -= mouse_dx as f32 / mult;
+            }
         }
-        if keys[sdl3::keys::SCANCODE_W as usize] != 0 {
-            cam.position.z -= 0.01 * dt;
-        }
+
         let m = matrix::Matrix::gen_rotation(0.0, 0.0, 1.0, rect_rotation) * cam.gen_world_to_clip(width as f32 / height as f32);
         rect_rotation += 0.001 * dt;
         unsafe {

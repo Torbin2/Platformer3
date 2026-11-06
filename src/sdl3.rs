@@ -28,6 +28,9 @@ mod _sdl3 {
 
         pub fn SDL_PollEvent(event: *mut events::Event) -> bool;
         pub fn SDL_GetKeyboardState(num_keys: *mut std::ffi::c_int) -> *const Bool;
+        pub fn SDL_SetWindowRelativeMouseMode(window: *mut core::ffi::c_void, enabled: Bool) -> Bool;
+        pub fn SDL_WarpMouseInWindow(window: *mut core::ffi::c_void, x: core::ffi::c_float, y: core::ffi::c_float) -> ();
+        pub fn SDL_GetRelativeMouseState(x: *mut core::ffi::c_float, y: *mut core::ffi::c_float) -> events::MouseButtonFlags;
 
         pub fn SDL_GetError() -> *const core::ffi::c_char;
     }
@@ -176,6 +179,16 @@ impl<'a> Window {
     pub fn swap(&mut self) -> Result<(), String> {
         sdl_bool_to_result(unsafe { _sdl3::SDL_GL_SwapWindow(self.window) } )
     }
+
+    pub fn set_relative_mouse_mode(&mut self, mode: bool) -> Result<(), String> {
+        sdl_bool_to_result(unsafe { _sdl3::SDL_SetWindowRelativeMouseMode(self.window, if mode { 1 } else { 0 } ) } )
+    }
+
+    pub fn warp_mouse(&mut self, x: f32, y: f32) -> () {
+        unsafe {
+            _sdl3::SDL_WarpMouseInWindow(self.window, x, y);
+        }
+    }
 }
 
 pub fn poll_event() -> Option<events::Event> {
@@ -203,5 +216,15 @@ pub fn get_keyboard_state(keys_out: &mut [_sdl3::Bool; keys::SCANCODE_COUNT as u
             unsafe { new_keys.add(i as usize).read() }
         }
     }
+}
+
+pub fn get_relative_mouse_state() -> (f32, f32, events::MouseButtonFlags) {
+    let mut x = 0.0;
+    let mut y = 0.0;
+    let flags = unsafe {
+        _sdl3::SDL_GetRelativeMouseState(&mut x, &mut y)
+    };
+
+    return (x, y, flags);
 }
 

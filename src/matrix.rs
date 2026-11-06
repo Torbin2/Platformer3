@@ -66,11 +66,11 @@ impl std::ops::Mul for Matrix {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Vector { pub x: f32, pub y: f32, pub z: f32 }
 
 pub const VECTOR_UP: Vector = Vector { x: 0.0, y: 1.0, z: 0.0 };
-pub const VECTOR_FORWARD: Vector = Vector { x: 0.0, y: 0.0, z: 1.0 };
+pub const VECTOR_FORWARD: Vector = Vector { x: 0.0, y: 0.0, z: -1.0 };
 
 impl Vector {
     pub fn length(self) -> f32 {
@@ -152,6 +152,14 @@ impl std::ops::Sub for Vector {
             y: self.y - rhs.y,
             z: self.z - rhs.z,
         }
+    }
+}
+
+impl std::ops::SubAssign for Vector {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+        self.z -= rhs.z;
     }
 }
 
