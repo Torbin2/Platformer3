@@ -3,9 +3,12 @@
 use crate::gl;
 
 pub mod events;
+pub mod keys;
 
 mod _sdl3 {
-    pub type Bool = core::ffi::c_int;
+    // TODO: This might be a different type on other platforms.
+    // On Linux GCC, C and Rust booleans are compatible, so bool could be used here.
+    pub type Bool = u8;
     use crate::sdl3::events;
 
     #[link(name="SDL3")]
@@ -24,6 +27,7 @@ mod _sdl3 {
         pub fn SDL_GL_SwapWindow(window: *mut core::ffi::c_void) -> Bool;
 
         pub fn SDL_PollEvent(event: *mut events::Event) -> bool;
+        pub fn SDL_GetKeyboardState(num_keys: *mut std::ffi::c_int) -> *const Bool;
 
         pub fn SDL_GetError() -> *const core::ffi::c_char;
     }
@@ -182,6 +186,21 @@ pub fn poll_event() -> Option<events::Event> {
             Some(event.assume_init())
         } else {
             None
+        }
+    }
+}
+
+pub fn get_keyboard_state(keys_out: &mut [_sdl3::Bool; keys::SCANCODE_COUNT as usize]) {
+    let mut key_amount: core::ffi::c_int = 0;
+    let new_keys = unsafe {
+        _sdl3::SDL_GetKeyboardState(&mut key_amount)
+    };
+
+    for i in 0..keys::SCANCODE_COUNT {
+        keys_out[i as usize] = if i > (key_amount as u32) {
+            0
+        } else {
+            unsafe { new_keys.add(i as usize).read() }
         }
     }
 }

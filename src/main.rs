@@ -124,6 +124,9 @@ void main() {
             }
         }
 
+        let mut keys = [0; sdl3::keys::SCANCODE_COUNT as usize];
+        sdl3::get_keyboard_state(&mut keys);
+
         unsafe {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -134,7 +137,12 @@ void main() {
         }
 
         // let m = matrix::Matrix::gen_perspective(3.141 / 4.0, width as f32 / height as f32, 0.1, 100.0);
-        cam.position.z += 0.01 * dt;
+        if keys[sdl3::keys::SCANCODE_S as usize] != 0 {
+            cam.position.z += 0.01 * dt;
+        }
+        if keys[sdl3::keys::SCANCODE_W as usize] != 0 {
+            cam.position.z -= 0.01 * dt;
+        }
         let m = matrix::Matrix::gen_rotation(0.0, 0.0, 1.0, rect_rotation) * cam.gen_world_to_clip(width as f32 / height as f32);
         rect_rotation += 0.001 * dt;
         unsafe {
