@@ -10,13 +10,14 @@ pub struct Camera {
 
 impl Camera {
     pub fn move_in_view_space(&mut self, x: f32, y: f32, z: f32) {
-        let unit_dir = matrix::Vector::from_direction(self.direction);
+        let unit_dir = matrix::Vector::from_direction(
+            matrix::Vector { x: 0.0, y: self.direction.y, z: self.direction.z }
+        );
 
         let x_axis = unit_dir.cross(matrix::VECTOR_UP);
         self.position += x_axis * x;
 
-        let y_axis = unit_dir.cross(x_axis);
-        self.position += y_axis * y;
+        self.position += matrix::VECTOR_UP * y;
 
         self.position += unit_dir * z;
     }

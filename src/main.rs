@@ -180,11 +180,20 @@ void main() {
                 cam.move_in_view_space(-0.01 * dt, 0.0, 0.0);
             }
 
+            if keys[sdl3::keys::SCANCODE_SPACE as usize] != 0 {
+                cam.move_in_view_space(0.0, 0.01 * dt, 0.0);
+            }
+            if keys[sdl3::keys::SCANCODE_LCTRL as usize] != 0 {
+                cam.move_in_view_space(0.0, -0.01 * dt, 0.0);
+            }
+
             let (mouse_dx, mouse_dy, _mouse_flags) = sdl3::get_relative_mouse_state();
             {
                 let mult = 1000.0;
                 cam.direction.x -= mouse_dy as f32 / mult;
                 cam.direction.y -= mouse_dx as f32 / mult;
+
+                cam.direction.x = cam.direction.x.min(std::f32::consts::PI / 2.0).max(-std::f32::consts::PI / 2.0);
             }
         }
 
