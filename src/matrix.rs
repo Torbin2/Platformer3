@@ -43,8 +43,17 @@ impl Matrix {
         ])
     }
 
-    pub fn apply_vector(&self, vector: Vector) -> Self {
-        todo!()
+    pub fn apply_vector(&self, vector: Vector, w: f32) -> (Vector, f32) {
+        let a = [vector.x, vector.y, vector.z, w];
+        let mut out = [0.0f32; 4];
+
+        for i in 0..4usize {
+            for j in 0..4usize {
+                out[i] = self.0[4 * i + j] * a[j];
+            }
+        }
+
+        (Vector { x: out[0], y: out[1], z: out[2] }, out[3])
     }
 }
 

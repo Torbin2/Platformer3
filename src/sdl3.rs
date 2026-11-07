@@ -31,6 +31,7 @@ mod _sdl3 {
         pub fn SDL_SetWindowRelativeMouseMode(window: *mut core::ffi::c_void, enabled: Bool) -> Bool;
         pub fn SDL_WarpMouseInWindow(window: *mut core::ffi::c_void, x: core::ffi::c_float, y: core::ffi::c_float) -> ();
         pub fn SDL_GetRelativeMouseState(x: *mut core::ffi::c_float, y: *mut core::ffi::c_float) -> events::MouseButtonFlags;
+        pub fn SDL_GetMouseState(x: *mut core::ffi::c_float, y: *mut core::ffi::c_float) -> events::MouseButtonFlags;
 
         pub fn SDL_GetError() -> *const core::ffi::c_char;
     }
@@ -223,6 +224,16 @@ pub fn get_relative_mouse_state() -> (f32, f32, events::MouseButtonFlags) {
     let mut y = 0.0;
     let flags = unsafe {
         _sdl3::SDL_GetRelativeMouseState(&mut x, &mut y)
+    };
+
+    return (x, y, flags);
+}
+
+pub fn get_mouse_state() -> (f32, f32, events::MouseButtonFlags) {
+    let mut x = 0.0;
+    let mut y = 0.0;
+    let flags = unsafe {
+        _sdl3::SDL_GetMouseState(&mut x, &mut y)
     };
 
     return (x, y, flags);

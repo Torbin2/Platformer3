@@ -3,6 +3,7 @@ mod sdl3;
 
 mod camera;
 mod matrix;
+mod primitives;
 mod render;
 mod world;
 
@@ -41,18 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
     }
 
     let shader_program = match render::Shader::new(
-        "
-#version 330 core
-layout (location = 0) in vec3 aPos;
-
-uniform mat4 transform;
-
-out vec3 local_coord;
-
-void main () {
-	gl_Position = transform * vec4(aPos, 1.0);
-        local_coord = aPos;
-}", None, Some("
+        primitives::OBJECT_VERTEX_SHADER, None, Some("
 #version 330 core
 out vec4 FragColor;
 
@@ -75,42 +65,6 @@ void main() {
         }
     };
 
-    let indices = vec![
-        // Back
-        0, 1, 2,
-        1, 3, 2,
-
-        // Front
-        4, 5, 6,
-        5, 7, 6,
-
-        // Top
-        0, 1, 4,
-        4, 5, 1,
-
-        // Right face
-        1, 5, 3,
-        5, 7, 3,
-
-        // Left face
-        0, 4, 2,
-        4, 6, 2,
-
-        // Bottom
-        2, 3, 6,
-        6, 7, 3,
-    ];
-    let vertices: Vec<f32> = vec![
-        -1.0, -1.0, -1.0,
-         1.0, -1.0, -1.0,
-        -1.0,  1.0, -1.0,
-         1.0,  1.0, -1.0,
-
-        -1.0, -1.0,  1.0,
-         1.0, -1.0,  1.0,
-        -1.0,  1.0,  1.0,
-         1.0,  1.0,  1.0,
-    ];
     let vertex_attributes = vec![
         render::VertexAttribute{
             type_: render::VertexAttributeType::F32,
@@ -120,12 +74,15 @@ void main() {
             pointer: 0
         }
     ];
+    let cube = render::RenderObject::new(
+        render::Indices::U8(primitives::CUBE_INDICES),
+        render::vertices_to_u8_array(primitives::CUBE_VERTICES),
+        &vertex_attributes
+    )?;
+
     let triangle = render::RenderObject::new(
-        render::Indices::U8(&indices),
-        unsafe { std::slice::from_raw_parts(
-            vertices.as_slice().as_ptr() as *const u8,
-            vertices.len() * std::mem::size_of::<f32>()
-        ) },
+        render::Indices::U8(primitives::TRIANGLE_INDICES),
+        render::vertices_to_u8_array(primitives::TRIANGLE_VERTICES),
         &vertex_attributes
     )?;
 
@@ -140,16 +97,17 @@ void main() {
         aspect_ratio: 1.0
     };
 
-    let mut level = world::Level { objects: vec![
+    let mut level = world::Level::new()?;
+    level.objects.push(
         world::Object {
             position: matrix::Vector { x: 3.0, y: 0.0, z: 0.0 },
             rotation: matrix::Vector { x: 0.0, y: 0.0, z: 0.05 * 3.141 },
             scale: matrix::Vector { x: 1.0, y: 1.0, z: 1.0 },
 
-            render_object: Some(&triangle),
+            render_object: Some(&cube),
             shader: Some(&shader_program)
         }
-    ] };
+    );
 
     let mut frame_start = std::time::Instant::now();
 
@@ -183,6 +141,11 @@ void main() {
                                     window.warp_mouse(width as f32 / 2.0, height as f32 / 2.0);
 
                                     window.set_relative_mouse_mode(false)?;
+                                } else {
+                                    menu_enabled = false;
+
+                                    window.set_relative_mouse_mode(true)?;
+                                    sdl3::get_relative_mouse_state();
                                 }
                             }
                         },
@@ -200,10 +163,6 @@ void main() {
         unsafe {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        }
-
-        unsafe {
-            gl::UseProgram(shader_program.shader_program);
         }
 
         if !menu_enabled {
@@ -229,20 +188,33 @@ void main() {
             }
         }
 
-        level.render(&cam);
+        if menu_enabled {
+            level.render(&cam);
 
-        let m = matrix::Matrix::gen_rotation(0.0, 0.0, 1.0, rect_rotation) * cam.gen_world_to_clip();
-        rect_rotation += 0.001 * dt;
-        unsafe {
-            let transform_loc = gl::GetUniformLocation(shader_program.shader_program, c"transform".as_ptr());
-            if transform_loc == -1 {
-                println!("Could not get \"transform\" uniform location");
-            } else {
-                gl::UniformMatrix4fv(transform_loc, 1, gl::TRUE, m.0.as_ptr());
-            }
+            let (mouse_x, mouse_y, _mouse_flags) = sdl3::get_mouse_state();
+            level.render_centers(&cam, (mouse_x / width as f32, mouse_y / height as f32));
+        } else {
+            level.render(&cam);
         }
 
-        triangle.render();
+        {
+            unsafe {
+                gl::UseProgram(shader_program.shader_program);
+            }
+
+            let m = matrix::Matrix::gen_rotation(0.0, 0.0, 1.0, rect_rotation) * cam.gen_world_to_clip();
+            rect_rotation += 0.001 * dt;
+            unsafe {
+                let transform_loc = gl::GetUniformLocation(shader_program.shader_program, c"transform".as_ptr());
+                if transform_loc == -1 {
+                    println!("Could not get \"transform\" uniform location");
+                } else {
+                    gl::UniformMatrix4fv(transform_loc, 1, gl::TRUE, m.0.as_ptr());
+                }
+            }
+
+            triangle.render();
+        }
 
         window.swap()?;
     }

@@ -159,6 +159,29 @@ impl Shader {
             Err(info_log.to_string())
         }
     }
+
+    pub fn print_shader_info(info: Result<(Self, String), String>) -> Result<Self, String> {
+        match info {
+            Ok((shader_program, info_log)) => {
+                if info_log.len() > 0 {
+                    print!("Shader program compiled succesfully:\n{}", info_log);
+                }
+                Ok(shader_program)
+            }
+            Err(info_log) => {
+                print!("Shader program compilation failed:\n{}", info_log);
+                return Err(info_log);
+            }
+        }
+    }
+
+    pub fn get_uniform_location(&self, uniform_name: &std::ffi::CStr) -> gl::GLint {
+        let uniform_loc = unsafe { gl::GetUniformLocation(self.shader_program, uniform_name.as_ptr()) };
+        if uniform_loc == -1 {
+            panic!("Could not get {:?} uniform location", uniform_name)
+        }
+        uniform_loc
+    }
 }
 
 impl Drop for Shader {
@@ -169,6 +192,13 @@ impl Drop for Shader {
 
 
 // --------
+pub fn vertices_to_u8_array<'a, T>(array: &'a [T]) -> &'a[u8] {
+    unsafe { std::slice::from_raw_parts(
+        array.as_ptr() as *const u8,
+        array.len() * std::mem::size_of::<T>()
+    ) }
+}
+
 pub struct RenderObject {
     ibo: gl::GLuint,
     index_type: gl::GLenum,
