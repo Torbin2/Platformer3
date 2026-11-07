@@ -4,6 +4,8 @@ pub struct Camera {
     pub position: matrix::Vector,
     // The direction the camera is facing
     pub direction: matrix::Vector,
+
+    pub aspect_ratio: f32,
 }
 
 impl Camera {
@@ -19,13 +21,13 @@ impl Camera {
         self.position += unit_dir * z;
     }
 
-    pub fn gen_world_to_clip(&self, aspect: f32) -> matrix::Matrix {
+    pub fn gen_world_to_clip(&self) -> matrix::Matrix {
         matrix::Matrix::gen_translation(-self.position.x, -self.position.y, -self.position.z)
             * matrix::Matrix::gen_rotation(0.0, 1.0, 0.0, -self.direction.y)
             * matrix::Matrix::gen_rotation(1.0, 0.0, 0.0, -self.direction.x)
             * matrix::Matrix::gen_rotation(0.0, 0.0, 1.0, -self.direction.z)
 
-            * matrix::Matrix::gen_perspective(3.141 / 4.0, aspect, 0.1, 100.0)
+            * matrix::Matrix::gen_perspective(3.141 / 4.0, self.aspect_ratio, 0.1, 100.0)
     }
 }
 

@@ -175,6 +175,8 @@ pub struct RenderObject {
     indices_amount: i32,
     vao: gl::GLuint,
     vbo: gl::GLuint,
+
+    // TODO: Option<aabb> and frustum culling
 }
 
 #[allow(unused)]
@@ -307,7 +309,7 @@ impl RenderObject {
         } )
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&self) {
         unsafe {
             gl::BindVertexArray(self.vao);
             gl::DrawElements(gl::TRIANGLES, self.indices_amount, self.index_type, 0 as *const core::ffi::c_void);
